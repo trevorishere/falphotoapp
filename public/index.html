@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#F4F2EE;--surface:#fff;--surface2:#F9F8F5;--border:#E0DDD7;--border-strong:#C4C0B8;--text:#18160F;--muted:#6A6760;--faint:#A09D97;--accent:#18160F;--accent-fg:#F4F2EE;--blue:#185FA5;--blue-bg:#EBF3FB;--blue-border:#AACBEE;--green:#2A6049;--green-bg:#EAF3EE;--green-border:#9DCAB4;--red:#9B2335;--red-bg:#FCEEF0;--amber:#7A4F10;--amber-bg:#FDF3E0;--amber-border:#EFC97A}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1.5rem 4rem}
+    header{width:100%;max-width:980px;display:flex;align-items:baseline;margin-bottom:1.5rem}
+    .wordmark{font-size:17px;font-weight:500;letter-spacing:-.02em}
+    .wordmark span{color:var(--faint);font-weight:400}
+    .key-bar{width:100%;max-width:980px;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:1.5rem}
+    .key-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+    .key-bar input{flex:1;background:transparent;border:none;outline:none;font-family:'DM Mono',monospace;font-size:13px;color:var(--text)}
+    .key-dot{width:8px;height:8px;border-radius:50%;background:var(--border-strong);transition:background .3s;flex-shrink:0}
+    .key-dot.active{background:var(--green)}
+    .tabs{width:100%;max-width:980px;display:flex;gap:2px;margin-bottom:1.25rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
+    .tab{flex:1;padding:9px 16px;border:none;background:transparent;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:7px}
+    .tab:hover{color:var(--text);background:var(--bg)}
+    .tab.active{background:var(--accent);color:var(--accent-fg)}
+    .tab-num{width:18px;height:18px;border-radius:50%;background:var(--border);font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--muted)}
+    .tab.active .tab-num{background:rgba(255,255,255,.15);color:var(--accent-fg)}
+    .pane{display:none;width:100%;max-width:980px}
+    .pane.active{display:block}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem}
+    .section-title{font-size:15px;font-weight:500;margin-bottom:4px}
+    .section-sub{font-size:13px;color:var(--muted);margin-bottom:1.5rem;line-height:1.5}
+    .upload-area{border:1.5px dashed var(--border-strong);border-radius:12px;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;transition:all .2s;margin-bottom:1.25rem}
+    .upload-area:hover{border-color:var(--accent);background:var(--bg)}
+    .upload-area.has-files{border-style:solid;border-color:var(--blue-border);background:var(--blue-bg)}
+    .upload-icon{color:var(--faint)}
+    .upload-hint{font-size:13px;color:var(--muted);text-align:center}
+    .upload-hint strong{color:var(--text);font-weight:500}
+    .upload-hint small{display:block;font-size:11px;color:var(--faint);margin-top:3px}
+    .thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;margin-bottom:1.25rem}
+    .thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--bg)}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .tips{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:10px;padding:14px 16px;margin-bottom:1.5rem}
+    .tips-title{font-size:12px;font-weight:500;color:var(--amber);margin-bottom:6px}
+    .tips ul{padding-left:16px}
+    .tips li{font-size:12px;color:var(--amber);line-height:1.7}
+    .field{margin-bottom:1.25rem}
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .field input,.field textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .15s}
+    .field input:focus,.field textarea:focus{border-color:var(--border-strong);background:var(--surface)}
+    .field textarea{resize:none;height:80px;line-height:1.5}
+    .field input::placeholder,.field textarea::placeholder{color:var(--faint)}
+    .btn-primary{background:var(--accent);color:var(--accent-fg);border:none;border-radius:10px;padding:13px 20px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s,transform .1s;width:100%}
+    .btn-primary:hover{opacity:.82}
+    .btn-primary:active{transform:scale(.98)}
+    .btn-primary:disabled{opacity:.3;cursor:not-allowed;transform:none}
+    .progress-wrap{margin-top:1.25rem;display:none}
+    .progress-wrap.visible{display:block}
+    .progress-bar-bg{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
+    .progress-bar-fill{height:100%;background:var(--accent);border-radius:2px;width:0%;transition:width .4s ease}
+    .progress-label{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace}
+    .alert{border-radius:10px;padding:12px 16px;font-size:13px;margin-top:1rem;display:none;line-height:1.5}
+    .alert.visible{display:block}
+    .alert.success{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+    .alert.error{background:var(--red-bg);border:1px solid #F0A0AA;color:var(--red)}
+    .lora-badge{display:none;align-items:center;gap:10px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;padding:12px 16px;margin-bottom:1.5rem;font-size:13px;color:var(--green)}
+    .lora-badge.visible{display:flex}
+    .lora-dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0}
+    .gen-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+    .gen-left,.gen-right{display:flex;flex-direction:column;gap:1rem}
+    .label{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:8px}
+    .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .preset{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--muted);cursor:pointer;text-align:left;transition:all .15s;line-height:1.3}
+    .preset:hover{border-color:var(--border-strong);color:var(--text)}
+    .preset.selected{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+    .output-zone{background:var(--bg);border-radius:12px;min-height:280px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex:1}
+    .output-zone img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+    .out-placeholder{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--faint)}
+    .out-placeholder span{font-size:12px}
+    .spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--muted);border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .gen-status{font-family:'DM Mono',monospace;font-size:11px;color:var(--faint);text-align:center;min-height:16px}
+    .gen-status.error{color:var(--red)}
+    .gen-status.success{color:var(--green)}
+    .download-btn{display:none;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);border-radius:8px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;width:100%;text-align:center;text-decoration:none;transition:opacity .15s}
+    .download-btn:hover{opacity:.8}
+    .download-btn.visible{display:block}
+    input[type="file"]{display:none}
+  </style>
+</head>
+<body>
+
+<header><div class="wordmark">Photo Generator <span>/ fal.ai</span></div></header>
+
+<div class="key-bar">
+  <span class="key-label">fal.ai key</span>
+  <input type="password" id="apiKey" placeholder="paste your key here..." autocomplete="off" />
+  <div class="key-dot" id="keyDot"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab1" onclick="switchTab(1)"><span class="tab-num" id="tn1">1</span> Train your face</button>
+  <button class="tab" id="tab2" onclick="switchTab(2)"><span class="tab-num">2</span> Generate images</button>
+</div>
+
+<div class="pane active" id="pane1">
+  <div class="panel">
+    <div class="section-title">Train a model on your face</div>
+    <div class="section-sub">Upload 10–20 photos of yourself. Training takes about 5–10 minutes and costs ~$2–4. You only need to do this once per person.</div>
+    <div class="tips">
+      <div class="tips-title">Tips for best results</div>
+      <ul>
+        <li>Use a variety of angles — front, side, 3/4 view</li>
+        <li>Include different lighting conditions and backgrounds</li>
+        <li>Face should be clearly visible, in focus, and fill most of the frame</li>
+        <li>Avoid sunglasses, hats, or heavy filters</li>
+        <li>Mix casual and dressed-up photos</li>
+      </ul>
+    </div>
+    <div class="upload-area" id="trainUploadZone">
+      <svg class="upload-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 16V8m0 0-3 3m3-3 3 3M6 20h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="upload-hint"><strong>Click to select photos</strong> or drag and drop<small>JPG, PNG, WEBP · 10–20 photos recommended · 5 minimum</small></div>
+    </div>
+    <input type="file" id="trainFileInput" accept="image/*" multiple />
+    <div class="thumb-grid" id="thumbGrid"></div>
+    <div class="field">
+      <label>Trigger word — a unique identifier used in your prompts</label>
+      <input type="text" id="triggerWord" value="ohwx person" />
+    </div>
+    <button class="btn-primary" id="trainBtn" disabled>Start training</button>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Uploading photos...</div>
+    </div>
+    <div class="alert" id="trainAlert"></div>
+  </div>
+</div>
+
+<div class="pane" id="pane2">
+  <div class="panel">
+    <div class="lora-badge" id="loraBadge"><div class="lora-dot"></div><span>Model trained and ready</span></div>
+    <div id="noLoraMsg" style="font-size:13px;color:var(--muted);margin-bottom:1.5rem;padding:12px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">Complete training in step 1 first, then come back here to generate.</div>
+    <div class="gen-grid">
+      <div class="gen-left">
+        <div>
+          <span class="label">Scene preset</span>
+          <div class="presets">
+            <button class="preset" data-prompt="professional LinkedIn headshot, studio lighting, neutral grey background, business attire, sharp focus">LinkedIn headshot</button>
+            <button class="preset" data-prompt="standing in front of the Eiffel Tower in Paris, golden hour, cinematic, travel photography">Paris</button>
+            <button class="preset" data-prompt="on a tropical beach at sunset, warm golden light, relaxed and happy">Beach sunset</button>
+            <button class="preset" data-prompt="in a cozy modern coffee shop, soft window light, casual lifestyle photo">Coffee shop</button>
+            <button class="preset" data-prompt="executive portrait, dark moody background, dramatic Rembrandt lighting, formal attire">Executive portrait</button>
+            <button class="preset" data-prompt="in Tokyo at night, neon lights, rainy street reflection, cinematic">Tokyo nights</button>
+          </div>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Or describe your own scene</label>
+          <textarea id="customPrompt" placeholder="e.g. standing on a mountain summit at sunrise..."></textarea>
+        </div>
+        <button class="btn-primary" id="generateBtn" disabled>Generate image</button>
+        <div class="gen-status" id="genStatus"></div>
+      </div>
+      <div class="gen-right">
+        <span class="label">Result</span>
+        <div class="output-zone" id="outputZone">
+          <div class="out-placeholder" id="outPlaceholder">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            <span>your result will appear here</span>
+          </div>
+        </div>
+        <a class="download-btn" id="downloadBtn" download="generated.jpg">Download image</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let trainFiles=[], loraUrl=null, triggerWord='ohwx person', generating=false, selectedPreset=null;
+
+  const apiKeyInput=document.getElementById('apiKey');
+  const keyDot=document.getElementById('keyDot');
+  apiKeyInput.addEventListener('input',()=>{
+    keyDot.classList.toggle('active',apiKeyInput.value.trim().length>20);
+    checkTrainReady(); checkGenReady();
+  });
+  function getKey(){return apiKeyInput.value.trim()}
+
+  function switchTab(n){
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n-1));
+    document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('active',i===n-1));
+  }
+
+  const trainUploadZone=document.getElementById('trainUploadZone');
+  const trainFileInput=document.getElementById('trainFileInput');
+  const thumbGrid=document.getElementById('thumbGrid');
+
+  trainUploadZone.addEventListener('click',()=>trainFileInput.click());
+  trainUploadZone.addEventListener('dragover',e=>e.preventDefault());
+  trainUploadZone.addEventListener('drop',e=>{e.preventDefault();addFiles(Array.from(e.dataTransfer.files))});
+  trainFileInput.addEventListener('change',()=>addFiles(Array.from(trainFileInput.files)));
+
+  function addFiles(files){
+    trainFiles=[...trainFiles,...files.filter(f=>f.type.startsWith('image/'))].slice(0,25);
+    thumbGrid.innerHTML='';
+    trainFiles.forEach(f=>{
+      const d=document.createElement('div'); d.className='thumb';
+      const img=document.createElement('img'); img.src=URL.createObjectURL(f);
+      d.appendChild(img); thumbGrid.appendChild(d);
+    });
+    trainUploadZone.classList.toggle('has-files',trainFiles.length>0);
+    if(trainFiles.length>0) trainUploadZone.querySelector('.upload-hint').innerHTML=
+      '<strong>'+trainFiles.length+' photo'+(trainFiles.length>1?'s':'')+' selected</strong> · click to add more';
+    checkTrainReady();
+  }
+
+  function checkTrainReady(){document.getElementById('trainBtn').disabled=!getKey()||trainFiles.length<5}
+
+  const trainBtn=document.getElementById('trainBtn');
+  const progressWrap=document.getElementById('progressWrap');
+  const progressFill=document.getElementById('progressFill');
+  const progressLabel=document.getElementById('progressLabel');
+  const trainAlert=document.getElementById('trainAlert');
+
+  function setProgress(pct,label){
+    progressWrap.classList.add('visible');
+    progressFill.style.width=pct+'%';
+    progressLabel.textContent=label;
+  }
+
+  trainBtn.addEventListener('click',async()=>{
+    trainBtn.disabled=true;
+    trainAlert.className='alert';
+    triggerWord=document.getElementById('triggerWord').value.trim()||'ohwx person';
+    setProgress(10,'Uploading photos to fal.ai...');
+    const form=new FormData();
+    trainFiles.forEach(f=>form.append('images',f,f.name));
+    form.append('triggerWord',triggerWord);
+    try{
+      setProgress(25,'Training in progress — this takes 5–10 minutes...');
+      const res=await fetch('/api/train',{method:'POST',headers:{'x-fal-key':getKey()},body:form});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error||'Training failed');
+      loraUrl=data.loraUrl; triggerWord=data.triggerWord;
+      setProgress(100,'Training complete!');
+      trainAlert.className='alert success visible';
+      trainAlert.textContent='Model trained successfully. Switching to Generate...';
+      document.getElementById('loraBadge').classList.add('visible');
+      document.getElementById('noLoraMsg').style.display='none';
+      document.getElementById('tn1').textContent='✓';
+      checkGenReady();
+      setTimeout(()=>switchTab(2),1500);
+    }catch(e){
+      setProgress(0,''); progressWrap.classList.remove('visible');
+      trainAlert.className='alert error visible'; trainAlert.textContent=e.message;
+      trainBtn.disabled=false;
+    }
+  });
+
+  document.querySelectorAll('.preset').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.preset').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected'); selectedPreset=btn.dataset.prompt;
+      document.getElementById('customPrompt').value=''; checkGenReady();
+    });
+  });
+  document.getElementById('customPrompt').addEventListener('input',()=>{
+    if(document.getElementById('customPrompt').value.trim()){
+      document.querySelectorAll('.preset').forEach(b=>b.classList.remove('selected'));
+      selectedPreset=null;
+    }
+    checkGenReady();
+  });
+
+  function getPrompt(){return document.getElementById('customPrompt').value.trim()||selectedPreset||''}
+  function checkGenReady(){document.getElementById('generateBtn').disabled=!getKey()||!loraUrl||!getPrompt()||generating}
+
+  document.getElementById('generateBtn').addEventListener('click',async()=>{
+    if(generating)return;
+    generating=true;
+    document.getElementById('generateBtn').disabled=true;
+    document.getElementById('downloadBtn').classList.remove('visible');
+    const genStatus=document.getElementById('genStatus');
+    genStatus.className='gen-status'; genStatus.textContent='Generating — 15–30 seconds...';
+    const outPlaceholder=document.getElementById('outPlaceholder');
+    const outputZone=document.getElementById('outputZone');
+    outPlaceholder.style.display='flex';
+    const existingImg=outputZone.querySelector('img');
+    if(existingImg)existingImg.remove();
+    const spinner=document.createElement('div'); spinner.className='spinner';
+    outputZone.appendChild(spinner); outPlaceholder.style.display='none';
+    try{
+      const res=await fetch('/api/generate',{
+        method:'POST',
+        headers:{'x-fal-key':getKey(),'Content-Type':'application/json'},
+        body:JSON.stringify({prompt:getPrompt(),loraUrl,triggerWord})
+      });
+      spinner.remove();
+      const data=await res.json();
+      if(!res.ok)throw new Error(data.error||'Generation failed');
+      const img=document.createElement('img'); img.src=data.url;
+      img.onload=()=>{
+        outPlaceholder.style.display='none'; outputZone.appendChild(img);
+        genStatus.className='gen-status success'; genStatus.textContent='Done!';
+        const dl=document.getElementById('downloadBtn');
+        dl.href=data.url; dl.classList.add('visible');
+      };
+    }catch(e){
+      spinner.remove(); outPlaceholder.style.display='flex';
+      genStatus.className='gen-status error'; genStatus.textContent=e.message;
+    }
+    generating=false; checkGenReady();
+  });
+</script>
+</body>
+</html>

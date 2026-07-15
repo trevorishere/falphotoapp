@@ -6,6 +6,7 @@
   <title>Photo Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{--bg:#F4F2EE;--surface:#fff;--surface2:#F9F8F5;--border:#E0DDD7;--border-strong:#C4C0B8;--text:#18160F;--muted:#6A6760;--faint:#A09D97;--accent:#18160F;--accent-fg:#F4F2EE;--blue:#185FA5;--blue-bg:#EBF3FB;--blue-border:#AACBEE;--green:#2A6049;--green-bg:#EAF3EE;--green-border:#9DCAB4;--red:#9B2335;--red-bg:#FCEEF0;--amber:#7A4F10;--amber-bg:#FDF3E0;--amber-border:#EFC97A}
@@ -177,6 +178,7 @@
 
 <script>
   let trainFiles=[], loraUrl=null, triggerWord='ohwx person', generating=false, selectedPreset=null;
+  const falModulePromise=import('https://esm.sh/@fal-ai/client');
 
   const apiKeyInput=document.getElementById('apiKey');
   const keyDot=document.getElementById('keyDot');
@@ -232,16 +234,28 @@
     trainBtn.disabled=true;
     trainAlert.className='alert';
     triggerWord=document.getElementById('triggerWord').value.trim()||'ohwx person';
-    setProgress(10,'Uploading photos to fal.ai...');
-    const form=new FormData();
-    trainFiles.forEach(f=>form.append('images',f,f.name));
-    form.append('triggerWord',triggerWord);
     try{
-      setProgress(25,'Training in progress — this takes 5–10 minutes...');
-      const res=await fetch('/api/train',{method:'POST',headers:{'x-fal-key':getKey()},body:form});
+      setProgress(10,'Zipping photos...');
+      const zip=new JSZip();
+      trainFiles.forEach(f=>zip.file(f.name||`photo_${Date.now()}.jpg`,f));
+      const zipBlob=await zip.generateAsync({type:'blob'});
+
+      setProgress(20,'Uploading photos to fal.ai...');
+      const {fal}=await falModulePromise;
+      fal.config({credentials:getKey()});
+      const zipFile=new File([zipBlob],'training_images.zip',{type:'application/zip'});
+      const zipUrl=await fal.storage.upload(zipFile);
+
+      setProgress(35,'Training in progress — this takes 5–10 minutes...');
+      const res=await fetch('https://fal.run/fal-ai/flux-lora-fast-training',{
+        method:'POST',
+        headers:{'Authorization':`Key ${getKey()}`,'Content-Type':'application/json'},
+        body:JSON.stringify({images_data_url:zipUrl,trigger_word:triggerWord,steps:1000,create_masks:true})
+      });
       const data=await res.json();
-      if(!res.ok) throw new Error(data.error||'Training failed');
-      loraUrl=data.loraUrl; triggerWord=data.triggerWord;
+      if(!res.ok) throw new Error(data.detail?JSON.stringify(data.detail):(data.error||'Training failed'));
+      loraUrl=data?.diffusers_lora_file?.url||data?.lora_file?.url||data?.weights_url;
+      if(!loraUrl) throw new Error('Training succeeded but no LoRA URL found');
       setProgress(100,'Training complete!');
       trainAlert.className='alert success visible';
       trainAlert.textContent='Model trained successfully. Switching to Generate...';
@@ -290,20 +304,31 @@
     const spinner=document.createElement('div'); spinner.className='spinner';
     outputZone.appendChild(spinner); outPlaceholder.style.display='none';
     try{
-      const res=await fetch('/api/generate',{
+      const fullPrompt=`${triggerWord}, ${getPrompt()}, photorealistic, high quality, sharp focus`;
+      const res=await fetch('https://fal.run/fal-ai/flux-lora',{
         method:'POST',
-        headers:{'x-fal-key':getKey(),'Content-Type':'application/json'},
-        body:JSON.stringify({prompt:getPrompt(),loraUrl,triggerWord})
+        headers:{'Authorization':`Key ${getKey()}`,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          prompt:fullPrompt,
+          loras:[{path:loraUrl,scale:1.0}],
+          num_inference_steps:28,
+          guidance_scale:3.5,
+          image_size:'portrait_4_3',
+          num_images:1,
+          enable_safety_checker:false
+        })
       });
       spinner.remove();
       const data=await res.json();
-      if(!res.ok)throw new Error(data.error||'Generation failed');
-      const img=document.createElement('img'); img.src=data.url;
+      if(!res.ok)throw new Error(data.detail?JSON.stringify(data.detail):(data.error||'Generation failed'));
+      const imgUrl=data?.images?.[0]?.url;
+      if(!imgUrl) throw new Error('No image in response');
+      const img=document.createElement('img'); img.src=imgUrl;
       img.onload=()=>{
         outPlaceholder.style.display='none'; outputZone.appendChild(img);
         genStatus.className='gen-status success'; genStatus.textContent='Done!';
         const dl=document.getElementById('downloadBtn');
-        dl.href=data.url; dl.classList.add('visible');
+        dl.href=imgUrl; dl.classList.add('visible');
       };
     }catch(e){
       spinner.remove(); outPlaceholder.style.display='flex';

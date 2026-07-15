@@ -2,11 +2,13 @@
 
 AI-powered photo generator — train a model on your face, then place yourself in any scene or generate professional headshots.
 
+Live: https://trevorishere.github.io/falphotoapp/
+
 This is a fully static, client-side app. It talks directly to fal.ai from your browser — no server, no install required.
 
 ## Running the app
 
-Just open `index.html` in your browser.
+Just open `index.html` in your browser, or visit the live link above.
 
 If your browser blocks the fal.ai module import when opened directly as a file (`file://...`), serve the folder instead:
 
